@@ -20,7 +20,7 @@
     z-index: 1; 
     background: #0a0a0a; 
     /* 赛博朋克滤镜：高对比度，低饱和度 */
-    filter: grayscale(100%) contrast(1.1) brightness(0.8);
+    filter: grayscale(50%) contrast(1.1) brightness(0.8);
 }
 
 /* HUD 磨砂玻璃面板 */
