@@ -1,0 +1,159 @@
+/* styles.css */
+/* 基础滚动条配置 */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* 通用动画类 */
+.fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fade-in-up.visible { opacity: 1; transform: translateY(0); }
+
+/* 地图容器 */
+#progressMap { 
+    width: 100%; 
+    height: 100%; 
+    z-index: 1; 
+    background: #0a0a0a; 
+    /* 赛博朋克滤镜：高对比度，低饱和度 */
+    filter: grayscale(100%) contrast(1.1) brightness(0.8);
+}
+
+/* HUD 磨砂玻璃面板 */
+.hud-panel {
+    background: rgba(10, 10, 10, 0.95);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* ---------------------------------
+   Marker 动画系统 (核心优化)
+   特点：使用贝塞尔曲线模拟自然呼吸，而非简单的线性闪烁
+--------------------------------- */
+.custom-div-icon {
+    background: transparent;
+    border: none;
+}
+
+/* 核心实心点：模拟呼吸 */
+.marker-dot {
+    position: absolute; 
+    left: 50%; top: 50%;
+    transform: translate(-50%,-50%);
+    width: 6px; 
+    height: 6px; 
+    background-color: var(--color); 
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--color); /* 增加辉光半径 */
+    z-index: 2;
+    /* 4秒周期，ease-in-out 让呼吸更柔和 */
+    animation: breathe-dot 4s ease-in-out infinite;
+}
+
+/* 外部扩散涟漪：模拟信号/雷达 */
+.marker-ring {
+    position: absolute; 
+    left: 50%; top: 50%;
+    transform: translate(-50%,-50%);
+    width: 100%; 
+    height: 100%;
+    border-radius: 50%;
+    border: 1px solid var(--color);
+    /* 径向渐变，中心亮，边缘透明 */
+    background: radial-gradient(circle, var(--color) 0%, transparent 70%);
+    opacity: 0;
+    z-index: 1;
+    /* 3秒周期，自定义贝塞尔曲线实现"爆发后减速"的自然扩散感 */
+    animation: ripple-ring 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+/* 呼吸关键帧 */
+@keyframes breathe-dot {
+    0%, 100% { transform: translate(-50%,-50%) scale(1); opacity: 0.85; }
+    50% { transform: translate(-50%,-50%) scale(1.4); opacity: 1; box-shadow: 0 0 18px var(--color); }
+}
+
+/* 涟漪关键帧 */
+@keyframes ripple-ring {
+    0% {
+        width: 0px;
+        height: 0px;
+        opacity: 0.8;
+        border-width: 2px;
+    }
+    100% {
+        width: 36px; /* 扩散范围 */
+        height: 36px;
+        opacity: 0;
+        border-width: 0px;
+    }
+}
+
+/* --- 选中高亮状态 --- */
+.active-marker .marker-dot {
+    width: 12px;
+    height: 12px;
+    border: 2px solid white;
+    box-shadow: 0 0 20px var(--color), 0 0 40px var(--color); /* 强力高亮 */
+    z-index: 100 !important;
+    animation: none; /* 选中时停止呼吸，保持常亮 */
+    opacity: 1;
+    transform: translate(-50%,-50%) scale(1);
+}
+
+.active-marker .marker-ring {
+    width: 44px;
+    height: 44px;
+    border: 1px solid white;
+    opacity: 0.2;
+    animation: none; /* 选中时停止扩散，变成固定光圈 */
+    background: radial-gradient(circle, var(--color) 0%, transparent 60%);
+}
+
+/* --- UI 交互状态类 --- */
+/* 信息卡片动画 */
+#infoCard {
+    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.5s ease;
+}
+
+/* 移动端隐藏状态 */
+.mobile-hidden {
+    transform: translateY(110%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* 桌面端隐藏状态 */
+@media (min-width: 768px) {
+    .desktop-hidden {
+        transform: translateX(30px) !important;
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+/* 显示状态 */
+.is-visible {
+    transform: translate(0, 0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* 图片缩放容器 */
+.img-zoom-container { overflow: hidden; }
+.img-zoom-container img { transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+.img-zoom-container:hover img { transform: scale(1.05); }
+
+/* 移动端菜单 */
+#mobileMenu {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform-origin: top center;
+}
+.menu-closed { opacity: 0; transform: scaleY(0); pointer-events: none; }
+.menu-open { opacity: 1; transform: scaleY(1); pointer-events: auto; }
