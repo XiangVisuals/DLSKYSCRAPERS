@@ -33,15 +33,14 @@
 }
 
 /* ---------------------------------
-   Marker 动画系统 (核心优化)
-   特点：使用贝塞尔曲线模拟自然呼吸，而非简单的线性闪烁
+   Marker 动画系统
 --------------------------------- */
 .custom-div-icon {
     background: transparent;
     border: none;
 }
 
-/* 核心实心点：模拟呼吸 */
+/* 核心实心点 */
 .marker-dot {
     position: absolute; 
     left: 50%; top: 50%;
@@ -50,13 +49,12 @@
     height: 6px; 
     background-color: var(--color); 
     border-radius: 50%;
-    box-shadow: 0 0 12px var(--color); /* 增加辉光半径 */
+    box-shadow: 0 0 12px var(--color); 
     z-index: 2;
-    /* 4秒周期，ease-in-out 让呼吸更柔和 */
     animation: breathe-dot 4s ease-in-out infinite;
 }
 
-/* 外部扩散涟漪：模拟信号/雷达 */
+/* 外部扩散涟漪 */
 .marker-ring {
     position: absolute; 
     left: 50%; top: 50%;
@@ -65,11 +63,9 @@
     height: 100%;
     border-radius: 50%;
     border: 1px solid var(--color);
-    /* 径向渐变，中心亮，边缘透明 */
     background: radial-gradient(circle, var(--color) 0%, transparent 70%);
     opacity: 0;
     z-index: 1;
-    /* 3秒周期，自定义贝塞尔曲线实现"爆发后减速"的自然扩散感 */
     animation: ripple-ring 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
 }
 
@@ -88,7 +84,7 @@
         border-width: 2px;
     }
     100% {
-        width: 36px; /* 扩散范围 */
+        width: 36px; 
         height: 36px;
         opacity: 0;
         border-width: 0px;
@@ -100,9 +96,9 @@
     width: 12px;
     height: 12px;
     border: 2px solid white;
-    box-shadow: 0 0 20px var(--color), 0 0 40px var(--color); /* 强力高亮 */
+    box-shadow: 0 0 20px var(--color), 0 0 40px var(--color);
     z-index: 100 !important;
-    animation: none; /* 选中时停止呼吸，保持常亮 */
+    animation: none; 
     opacity: 1;
     transform: translate(-50%,-50%) scale(1);
 }
@@ -112,7 +108,7 @@
     height: 44px;
     border: 1px solid white;
     opacity: 0.2;
-    animation: none; /* 选中时停止扩散，变成固定光圈 */
+    animation: none; 
     background: radial-gradient(circle, var(--color) 0%, transparent 60%);
 }
 

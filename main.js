@@ -1,7 +1,9 @@
 // main.js
 document.addEventListener('DOMContentLoaded', function() {
     // 1. 初始化图标
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
 
     // 2. 滚动出现动画
     const observer = new IntersectionObserver(e => e.forEach(en => en.isIntersecting && (en.target.classList.add('visible'), observer.unobserve(en.target))), { threshold: 0.1 });
@@ -12,18 +14,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const mobileMenu = document.getElementById('mobileMenu');
     const mobileLinks = document.querySelectorAll('.mobile-link');
     
-    menuBtn.addEventListener('click', () => {
-        const isClosed = mobileMenu.classList.contains('menu-closed');
-        mobileMenu.classList.toggle('menu-closed', !isClosed);
-        mobileMenu.classList.toggle('menu-open', isClosed);
-    });
-
-    mobileLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            mobileMenu.classList.remove('menu-open');
-            mobileMenu.classList.add('menu-closed');
+    if (menuBtn && mobileMenu) {
+        menuBtn.addEventListener('click', () => {
+            const isClosed = mobileMenu.classList.contains('menu-closed');
+            mobileMenu.classList.toggle('menu-closed', !isClosed);
+            mobileMenu.classList.toggle('menu-open', isClosed);
         });
-    });
+
+        mobileLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.remove('menu-open');
+                mobileMenu.classList.add('menu-closed');
+            });
+        });
+    }
 
     // 4. 数据面板交互 (Mobile)
     const mobileStatsToggle = document.getElementById('mobileStatsToggle');
@@ -43,7 +47,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 5. 地图初始化
-    // 修复：禁用 scrollWheelZoom 防止页面滚动卡顿
     const map = L.map('progressMap', {
         center: [38.920, 121.640],
         zoom: 14,
@@ -80,9 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const counts = { completed: 0, construction: 0, planned: 0 };
     buildings.forEach(b => {
         let statusKey = b.status;
-        if(statusKey === 'landmark') statusKey = 'completed'; // 地标归为已建成
+        if(statusKey === 'landmark') statusKey = 'completed'; 
         
-        // 确保 key 存在，不存在则默认归为 planned 或其他
         if(counts[statusKey] !== undefined) {
             counts[statusKey]++;
         } else {
@@ -105,7 +107,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const list = document.getElementById('buildingList');
     const card = document.getElementById('infoCard');
     
-    // 记录当前激活的 Marker Icon，用于清除高亮
     let activeMarkerIcon = null;
 
     // 清除状态函数
@@ -123,24 +124,60 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
 
-    buildings.forEach(b => {
-        // --- 颜色定义 (与 CSS 变量配合) ---
-        // 绿色: #34d399 (Emerald-400)
-        // 黄色: #fbbf24 (Amber-400)
-        // 红色: #f87171 (Red-400)
-        let color;
-        if (b.status === "completed" || b.status === "landmark") {
-            color = "#34d399"; 
-        } else if (b.status === "construction") {
-            color = "#fbbf24"; 
-        } else {
-            color = "#f87171"; 
-        }
+    // 渲染函数 (提取出来方便搜索时重用，但不重绘地图Marker，只重绘列表)
+    const renderList = (filterText = '') => {
+        list.innerHTML = ''; // 清空列表
+        
+        buildings.forEach(b => {
+            // 搜索过滤逻辑
+            if (filterText && !b.name.toLowerCase().includes(filterText.toLowerCase())) {
+                return; // 跳过不匹配的
+            }
 
+            let color;
+            if (b.status === "completed" || b.status === "landmark") {
+                color = "#34d399"; 
+            } else if (b.status === "construction") {
+                color = "#fbbf24"; 
+            } else {
+                color = "#f87171"; 
+            }
+
+            // 创建侧边栏列表项
+            const item = document.createElement('div');
+            item.className = `p-2 pl-3 border-l-2 border-transparent hover:border-white hover:bg-white/5 cursor-pointer transition-all group flex justify-between items-center building-item`;
+            item.dataset.lat = b.lat; // 存储坐标用于点击
+            item.dataset.lng = b.lng;
+            item.innerHTML = `
+                <div class="overflow-hidden">
+                    <div class="text-[10px] font-mono text-gray-500 group-hover:text-white">#${b.rank.toString().padStart(2, '0')}</div>
+                    <div class="text-xs font-medium text-gray-300 group-hover:text-white truncate mt-0.5 font-sans">${b.name}</div>
+                </div>
+                <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-2" style="background:${color}"></div>
+            `;
+
+            // 绑定点击事件 (复用 activate 逻辑，通过坐标反向查找 Marker 比较复杂，这里简化为重新触发逻辑)
+            item.onclick = (e) => {
+                // 找到对应的 Marker 并触发其点击事件
+                if(b.markerInstance) {
+                    b.markerInstance.fire('click');
+                }
+            };
+            
+            // 如果该建筑被高亮，列表重绘后保持高亮 (简单实现，暂略，因为搜索会重置列表)
+            list.appendChild(item);
+        });
+    };
+
+    // 初始化 Markers 并绑定到数据对象上
+    buildings.forEach(b => {
         if (!b.lat || !b.lng) return;
 
-        // --- Marker 核心优化 ---
-        // 生成一个 0 到 -3秒 之间的随机延迟，使所有点的呼吸动画产生错落感，不再整齐划一
+        let color;
+        if (b.status === "completed" || b.status === "landmark") color = "#34d399"; 
+        else if (b.status === "construction") color = "#fbbf24"; 
+        else color = "#f87171"; 
+
         const randomDelay = `-${Math.random() * 3}s`;
 
         const icon = L.divIcon({
@@ -154,19 +191,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         const marker = L.marker([b.lat, b.lng], { icon: icon }).addTo(map);
+        
+        // 将 marker 实例保存到数据对象中，以便列表点击时调用
+        b.markerInstance = marker;
 
-        // 创建侧边栏列表项
-        const item = document.createElement('div');
-        item.className = `p-2 pl-3 border-l-2 border-transparent hover:border-white hover:bg-white/5 cursor-pointer transition-all group flex justify-between items-center`;
-        item.innerHTML = `
-            <div class="overflow-hidden">
-                <div class="text-[10px] font-mono text-gray-500 group-hover:text-white">#${b.rank.toString().padStart(2, '0')}</div>
-                <div class="text-xs font-medium text-gray-300 group-hover:text-white truncate mt-0.5 font-sans">${b.name}</div>
-            </div>
-            <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-2" style="background:${color}"></div>
-        `;
-
-        // 点击激活逻辑
         const activate = (e) => {
             if(e && e.originalEvent) L.DomEvent.stopPropagation(e);
             clearActiveState();
@@ -177,10 +205,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 activeMarkerIcon = marker._icon;
             }
 
-            // 2. 列表高亮并滚动
-            item.classList.remove('border-transparent');
-            item.classList.add('border-white', 'bg-white/10');
-            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // 2. 列表高亮 (需要遍历列表找到对应项目)
+            const listItems = document.querySelectorAll('.building-item');
+            // 简单匹配：根据名字或坐标
+            // 由于列表可能被搜索过滤，这里我们遍历 DOM
+            listItems.forEach(item => {
+                // 只有浮点数完全相等才匹配，稍微有点风险，但对于生成的数据是OK的
+                if(Math.abs(parseFloat(item.dataset.lat) - b.lat) < 0.000001) {
+                    item.classList.remove('border-transparent');
+                    item.classList.add('border-white', 'bg-white/10');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
 
             // 3. 地图视角飞跃
             map.flyTo([b.lat, b.lng], 16, { duration: 0.8 });
@@ -189,7 +225,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if(card) {
                 document.getElementById('cardRank').textContent = '#' + b.rank.toString().padStart(2, '0');
                 
-                // 名字处理：分离中文和英文(括号内)
                 const nameParts = b.name.split(/[\(（]/); 
                 document.getElementById('cardName').textContent = nameParts[0].trim();
                 document.getElementById('cardEnName').textContent = nameParts[1] ? nameParts[1].replace(/[\)）]/, '') : 'Unknown Entity';
@@ -206,7 +241,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 else if (b.area === 'Ganjingzi') areaText = '甘井子区';
                 document.getElementById('cardArea').textContent = areaText;
 
-                // 状态标签样式
                 const statusContainer = document.getElementById('cardStatusContainer');
                 let statusConfig;
                 
@@ -221,15 +255,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusContainer.className = `text-[10px] font-mono tracking-widest mb-1 flex items-center gap-1.5 ${statusConfig.color}`;
                 statusContainer.innerHTML = `<div class="w-1.5 h-1.5 rounded-full ${statusConfig.bg} animate-pulse"></div> ${statusConfig.text}`;
 
-                // 显示卡片
                 card.classList.add('is-visible');
             }
         };
 
-        item.onclick = activate;
         marker.on('click', activate);
-        list.appendChild(item);
     });
+
+    // 初始渲染列表
+    renderList();
+
+    // 7. 绑定搜索事件 (新增功能)
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            renderList(e.target.value);
+        });
+    }
 
     // 点击地图空白处清除状态
     map.on('click', clearActiveState);
