@@ -16,6 +16,7 @@
             --glass-bg: rgba(255, 255, 255, 0.1);
             --glass-border: rgba(255, 255, 255, 0.2);
             --text-color: #ffffff;
+            --error-color: #ff4757;
         }
 
         body, html {
@@ -54,19 +55,18 @@
             transition: transform 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.6s ease;
         }
 
-        /* 背景模糊图 */
+        /* 背景模糊图 - 动态设置 */
         .landing-bg {
             position: absolute;
             top: -10%;
             left: -10%;
             width: 120%;
             height: 120%;
-            background-image: url('https://cllli.oss-cn-beijing.aliyuncs.com/img/panoramic/PXL_20251207_080736344.PHOTOSPHERE.jpg');
             background-size: cover;
             background-position: center;
             filter: blur(15px) brightness(0.6);
             z-index: -1;
-            transition: transform 5s linear; /* 简单的缓慢移动效果 */
+            transition: transform 5s linear;
         }
 
         .landing-content {
@@ -131,7 +131,6 @@
             box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
         }
         
-        /* 按钮光效 */
         .start-btn::after {
             content: '';
             position: absolute;
@@ -166,12 +165,45 @@
             to { transform: rotate(360deg); }
         }
 
+        /* --- 顶部通知 Toast --- */
+        #toast-msg {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(30, 30, 30, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            z-index: 200;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 90%;
+            white-space: nowrap;
+        }
+        #toast-msg.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        #toast-msg.error {
+            border-left: 4px solid var(--error-color);
+        }
+        #toast-msg.info {
+            border-left: 4px solid var(--primary-color);
+        }
+
         /* --- 悬浮控制栏 (HUD) --- */
         #hud-controls {
             position: absolute;
             bottom: 30px;
             left: 50%;
-            transform: translateX(-50%) translateY(150%); /* 初始隐藏在底部 */
+            transform: translateX(-50%) translateY(150%);
             display: flex;
             gap: 15px;
             padding: 12px 20px;
@@ -219,7 +251,6 @@
             color: var(--primary-color);
         }
         
-        /* 简单的Tooltips */
         .hud-btn::before {
             content: attr(data-tooltip);
             position: absolute;
@@ -270,9 +301,15 @@
 </head>
 <body>
 
+    <!-- 顶部通知 -->
+    <div id="toast-msg" class="info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right:5px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <span id="toast-text">消息提示</span>
+    </div>
+
     <!-- 启动页 -->
     <div id="landing-page">
-        <div class="landing-bg"></div>
+        <div class="landing-bg" id="landing-bg"></div>
         <div class="landing-content">
             <h1>VR 全景世界</h1>
             <p class="subtitle">360° 沉浸式视觉体验<br>支持重力感应与触摸交互</p>
@@ -287,6 +324,7 @@
             <div class="loader-container" id="loader">
                 <div class="spinner"></div>
                 <p style="font-size:12px; margin-top:10px; opacity:0.7">正在加载高清资源...</p>
+                <p id="loading-status" style="font-size:10px; margin-top:5px; color:#aaa">连接 OSS 服务器...</p>
             </div>
         </div>
     </div>
@@ -312,7 +350,7 @@
         </button>
 
         <button class="hud-btn" id="btn-auto" data-tooltip="自动旋转">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg> <!-- 播放/暂停图标会动态切换 -->
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
         </button>
 
         <button class="hud-btn" id="btn-fullscreen" data-tooltip="全屏">
@@ -325,17 +363,43 @@
     </div>
 
     <script>
-        // 配置
-        const IMAGE_URL = "https://cllli.oss-cn-beijing.aliyuncs.com/img/panoramic/PXL_20251207_080736344.PHOTOSPHERE.jpg";
-        
-        // DOM 元素
+        // --- 核心配置 ---
+        // 尝试加载顺序：OSS 链接 -> 本地上传文件 -> 官方示例
+        const IMAGE_SOURCES = [
+            { 
+                url: "https://cllli.oss-cn-beijing.aliyuncs.com/img/panoramic/PXL_20251207_080736344.PHOTOSPHERE.jpg", 
+                label: "OSS 高清源" 
+            },
+            { 
+                url: "PXL_20251207_080736344.PHOTOSPHERE.jpg", 
+                label: "本地备份源" 
+            },
+            { 
+                url: "https://pannellum.org/images/alma.jpg", 
+                label: "演示示例图" 
+            }
+        ];
+
+        let currentSourceIndex = 0;
+        let viewer;
+        let isAutoRotating = false;
+        let isGyroEnabled = false;
+
+        // --- DOM 元素 ---
         const startBtn = document.getElementById('startBtn');
         const landingPage = document.getElementById('landing-page');
+        const landingBg = document.getElementById('landing-bg');
         const loader = document.getElementById('loader');
+        const loadingStatus = document.getElementById('loading-status');
         const panoramaContainer = document.getElementById('panorama');
         const hudControls = document.getElementById('hud-controls');
         const gestureHint = document.getElementById('gesture-hint');
-        
+        const toast = document.getElementById('toast-msg');
+        const toastText = document.getElementById('toast-text');
+
+        // 设置启动页背景（优先用第一张图，不管加载与否先设背景）
+        landingBg.style.backgroundImage = `url('${IMAGE_SOURCES[0].url}')`;
+
         // 按钮元素
         const btnGyro = document.getElementById('btn-gyro');
         const btnAuto = document.getElementById('btn-auto');
@@ -343,19 +407,15 @@
         const btnZoomIn = document.getElementById('btn-zoom-in');
         const btnZoomOut = document.getElementById('btn-zoom-out');
 
-        let viewer;
-        let isAutoRotating = false;
-        let isGyroEnabled = false;
-
-        // 初始化函数
+        // --- 初始化流程 ---
         startBtn.addEventListener('click', async () => {
             // UI 更新
             startBtn.style.display = 'none';
             document.querySelector('.subtitle').style.display = 'none';
-            document.querySelector('h1').innerText = "资源加载中...";
+            document.querySelector('h1').innerText = "VR 世界加载中...";
             loader.style.display = 'block';
 
-            // 申请全屏 (用户交互时立即申请)
+            // 立即尝试全屏
             requestFullscreenSafely();
 
             // 申请陀螺仪权限 (iOS 13+)
@@ -368,47 +428,76 @@
                     console.error("Gyro permission error:", e);
                 }
             } else {
-                permissionGranted = true; // 非 iOS 13+ 通常默认允许或不需要显式请求
+                permissionGranted = true; 
             }
 
-            // 延迟一点点以展示加载动画，并确保全屏生效
+            // 启动查看器
             setTimeout(() => {
                 initPannellum(permissionGranted);
-            }, 800);
+            }, 500);
         });
 
         function initPannellum(enableGyroInit) {
+            const source = IMAGE_SOURCES[currentSourceIndex];
+            loadingStatus.innerText = `正在连接: ${source.label}...`;
+
+            // 如果已经存在实例，先销毁
+            if (viewer) {
+                try { viewer.destroy(); } catch(e) {}
+            }
+
             viewer = pannellum.viewer('panorama', {
                 "type": "equirectangular",
-                "panorama": IMAGE_URL,
+                "panorama": source.url,
                 "autoLoad": true,
                 "compass": false,
                 "showZoomCtrl": false,
                 "mouseZoom": false,
-                "showControls": false, // 隐藏默认控件，使用自定义 HUD
+                "showControls": false,
                 "hfov": 100,
                 "minHfov": 50,
                 "maxHfov": 120,
                 "pitch": 0,
                 "yaw": 0,
                 "friction": 0.05,
-                "autoRotate": -2, // 初始自动缓慢左旋
-                "autoRotateInactivityDelay": 3000, // 交互后3秒恢复旋转
-                "crossOrigin": "anonymous" // 尝试解决跨域纹理问题
+                "autoRotate": -2,
+                "autoRotateInactivityDelay": 3000,
+                "crossOrigin": "anonymous" // 关键：尝试跨域
             });
 
-            // 监听加载错误
+            // --- 关键：智能错误处理 ---
             viewer.on('error', (e) => {
-                console.error("Pannellum Error:", e);
-                alert("全景图加载失败，请检查网络或跨域设置。");
-                // 恢复 UI
-                loader.style.display = 'none';
-                startBtn.style.display = 'flex';
-                document.querySelector('h1').innerText = "VR 全景世界";
+                console.error("加载失败:", e);
+                
+                // 如果还有备用源，尝试切换
+                if (currentSourceIndex < IMAGE_SOURCES.length - 1) {
+                    currentSourceIndex++;
+                    const nextSource = IMAGE_SOURCES[currentSourceIndex];
+                    
+                    // 显示 Toast 提示
+                    showToast(`加载受阻 (跨域/网络)，已自动切换至: ${nextSource.label}`, "info");
+                    
+                    // 递归重新初始化
+                    setTimeout(() => {
+                        initPannellum(enableGyroInit);
+                    }, 1000);
+                } else {
+                    // 所有源都失败
+                    loadingStatus.innerText = "资源加载彻底失败";
+                    showToast("所有图片源加载失败，请检查网络。", "error");
+                    startBtn.style.display = 'flex';
+                    startBtn.innerText = "重试";
+                    loader.style.display = 'none';
+                }
             });
 
-            // 监听加载完成
+            // 监听加载成功
             viewer.on('load', () => {
+                // 如果不是第一个源，说明发生了回退，更新背景图以便下次视觉一致
+                if (currentSourceIndex > 0) {
+                    landingBg.style.backgroundImage = `url('${IMAGE_SOURCES[currentSourceIndex].url}')`;
+                }
+
                 // 隐藏启动页
                 landingPage.style.transform = 'translateY(-100%)';
                 landingPage.style.opacity = '0';
@@ -417,61 +506,67 @@
                 // 显示 HUD
                 hudControls.style.transform = 'translateX(-50%) translateY(0)';
 
-                // 显示手势提示 (3秒后消失)
+                // 手势提示
                 setTimeout(() => {
                     gestureHint.style.opacity = '0.8';
-                    setTimeout(() => {
-                        gestureHint.style.opacity = '0';
-                    }, 2500);
+                    setTimeout(() => { gestureHint.style.opacity = '0'; }, 2500);
                 }, 500);
 
-                // 初始状态记录
+                // 状态
                 isAutoRotating = true;
                 updateAutoBtnIcon();
 
-                // 如果有权限，稍后开启陀螺仪
                 if (enableGyroInit) {
                     toggleGyro(true);
                 }
             });
 
-            // 监听用户交互停止自动旋转 (Pannellum 内部机制，我们需要同步按钮状态)
+            // 用户交互中断自动旋转
             viewer.on('mousedown', () => { isAutoRotating = false; updateAutoBtnIcon(); });
             viewer.on('touchstart', () => { isAutoRotating = false; updateAutoBtnIcon(); });
         }
 
-        // --- 功能函数 ---
+        // --- UI 工具函数 ---
 
-        // 1. 陀螺仪切换
+        function showToast(text, type = "info") {
+            toastText.innerText = text;
+            toast.className = type; // set class for color styling
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4000); // 4秒后消失
+        }
+
+        // --- 功能控制函数 (与之前相同) ---
+
         function toggleGyro(forceState) {
             if (!viewer) return;
-            
             const newState = forceState !== undefined ? forceState : !isGyroEnabled;
-            
             if (newState) {
                 try {
                     viewer.startOrientation();
                     isGyroEnabled = true;
                     btnGyro.classList.add('active');
+                    showToast("体感模式已开启");
                 } catch(e) {
-                    console.log("Gyro start failed (device not supported?)");
+                    console.log("Gyro failed");
                 }
             } else {
                 viewer.stopOrientation();
                 isGyroEnabled = false;
                 btnGyro.classList.remove('active');
+                showToast("体感模式已关闭");
             }
         }
         btnGyro.addEventListener('click', () => toggleGyro());
 
-        // 2. 自动旋转切换
         function toggleAutoRotate() {
             if (!viewer) return;
             if (isAutoRotating) {
                 viewer.stopAutoRotate();
                 isAutoRotating = false;
             } else {
-                viewer.startAutoRotate(-2); // 负数向左
+                viewer.startAutoRotate(-2);
                 isAutoRotating = true;
             }
             updateAutoBtnIcon();
@@ -479,37 +574,26 @@
         btnAuto.addEventListener('click', toggleAutoRotate);
 
         function updateAutoBtnIcon() {
-            // 简单切换播放/暂停 SVG
             const path = isAutoRotating 
-                ? "M6 19h4V5H6v14zm8-14v14h4V5h-4z" // Pause icon
-                : "M8 5v14l11-7z"; // Play icon
+                ? "M6 19h4V5H6v14zm8-14v14h4V5h-4z" 
+                : "M8 5v14l11-7z";
             btnAuto.querySelector('path').setAttribute('d', path);
-            
             if(isAutoRotating) btnAuto.classList.add('active');
             else btnAuto.classList.remove('active');
         }
 
-        // 3. 缩放
         btnZoomIn.addEventListener('click', () => {
-            if(viewer) {
-                const currentHfov = viewer.getHfov();
-                viewer.setHfov(currentHfov - 10);
-            }
+            if(viewer) viewer.setHfov(viewer.getHfov() - 10);
         });
         btnZoomOut.addEventListener('click', () => {
-            if(viewer) {
-                const currentHfov = viewer.getHfov();
-                viewer.setHfov(currentHfov + 10);
-            }
+            if(viewer) viewer.setHfov(viewer.getHfov() + 10);
         });
 
-        // 4. 全屏切换
         function requestFullscreenSafely() {
             const docEl = document.documentElement;
             if (docEl.requestFullscreen) docEl.requestFullscreen();
             else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
         }
-
         function exitFullscreenSafely() {
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
@@ -518,13 +602,11 @@
         btnFullscreen.addEventListener('click', () => {
             if (!document.fullscreenElement && !document.webkitFullscreenElement) {
                 requestFullscreenSafely();
-                viewer.resize(); // 确保 canvas 重绘
             } else {
                 exitFullscreenSafely();
             }
         });
         
-        // 监听全屏变化事件来更新 UI 或 Resize
         const handleResize = () => { if(viewer) viewer.resize(); };
         document.addEventListener('fullscreenchange', handleResize);
         document.addEventListener('webkitfullscreenchange', handleResize);
