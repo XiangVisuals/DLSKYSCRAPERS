@@ -11,9 +11,6 @@
 
     <style>
         :root {
-            --primary-glow: rgba(255, 255, 255, 0.4);
-            --glass-bg: rgba(200, 200, 200, 0.15);
-            --glass-border: rgba(255, 255, 255, 0.25);
             --text-color: #ffffff;
             --error-color: #ff4757;
         }
@@ -36,29 +33,22 @@
             left: 0;
             width: 100%;
             height: 100%;
-            transition: transform 0.5s ease, width 0.5s ease, height 0.5s ease;
+            transition: transform 0.5s ease;
         }
 
-        /* 强制横屏的 CSS 类 (用于 iOS/不支持 API 锁定的设备) */
-        /* 核心逻辑：如果屏幕是竖屏 (height > width)，我们将容器旋转90度并交换宽高 */
+        /* 强制横屏的 CSS 类 (iOS兼容) */
         @media screen and (orientation: portrait) {
             body.force-landscape #main-container {
                 width: 100vh;
                 height: 100vw;
                 transform: rotate(90deg);
                 transform-origin: top left;
-                /* 旋转后需要位移补偿 */
                 position: absolute;
                 top: 0;
                 left: 100%; 
             }
-            
-            /* 旋转后，Toast 通知也要调整方向，否则会歪着显示 */
             body.force-landscape #toast-msg {
-                /* 由于父容器旋转了，Toast如果是fixed定位相对视口，不需要旋转；
-                   如果是绝对定位在main-container内，则需要反向处理。
-                   这里我们让Toast脱离main-container，直接放在body下，并单独处理 */
-                transform: rotate(90deg) translateX(50%); /* 简单处理，或者保持默认 */
+                transform: rotate(90deg) translateX(50%);
                 left: unset;
                 top: 50%;
                 right: 20px;
@@ -98,66 +88,97 @@
             height: 120%;
             background-size: cover;
             background-position: center;
-            filter: blur(25px) brightness(0.7);
+            filter: blur(50px) brightness(0.8); /* 稍微提亮背景，让玻璃透光更明显 */
             z-index: -1;
             transition: transform 8s linear;
         }
 
+        /* 参考 Liquid Glass 风格的卡片 - 极透版 */
         .landing-content {
-            /* VisionOS 风格卡片 */
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(25px) saturate(180%);
-            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            /* 极低的不透明度，靠模糊和亮度撑起质感 */
+            background: rgba(255, 255, 255, 0.05);
+            /* 高饱和度+亮度提升，模拟晶莹剔透的感觉 */
+            backdrop-filter: blur(40px) saturate(200%) brightness(1.2);
+            -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.2);
             padding: 40px;
-            border-radius: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 44px;
+            
+            /* 复合光影：顶部强光边，底部反光，四周投影 */
+            box-shadow: 
+                0 30px 60px rgba(0,0,0,0.3),                 /* 深远投影 */
+                inset 0 1px 0 rgba(255,255,255,0.7),         /* 顶部锐利高光 */
+                inset 0 -1px 0 rgba(255,255,255,0.2),        /* 底部边缘反光 */
+                0 0 0 1px rgba(255,255,255,0.1);             /* 外轮廓微光 */
+            
+            border: 1px solid rgba(255, 255, 255, 0.1);      /* 物理边框 */
+            
             text-align: center;
             max-width: 85%;
-            width: 320px;
+            width: 300px;
+            position: relative;
+        }
+        
+        /* 增加一个流动的光泽效果 */
+        .landing-content::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%);
+            pointer-events: none;
+            opacity: 0.6;
         }
 
         h1 {
             margin: 0 0 10px 0;
-            font-size: 26px;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.95);
-            letter-spacing: 0.5px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 2px 15px rgba(255,255,255,0.4); /* 文字发光 */
+            position: relative;
         }
 
         p.subtitle {
             font-size: 15px;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 30px;
-            font-weight: 400;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 35px;
+            font-weight: 500;
+            position: relative;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
-        /* Apple Style Start Button */
+        /* 启动按钮 - 高亮玻璃球风格 */
         .start-btn {
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            background: rgba(255, 255, 255, 0.15); /* 更透 */
+            border: 1px solid rgba(255,255,255,0.3);
             color: white;
-            padding: 16px 40px;
-            font-size: 17px;
-            font-weight: 500;
+            padding: 18px 48px;
+            font-size: 18px;
+            font-weight: 600;
             border-radius: 100px;
             cursor: pointer;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: transform 0.2s, background 0.3s, box-shadow 0.3s;
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            
+            /* 按钮的玻璃质感 */
+            box-shadow: 
+                0 15px 35px rgba(0,0,0,0.2),
+                inset 0 1px 0 rgba(255,255,255,0.6);
         }
 
         .start-btn:hover {
             background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.8);
             transform: scale(1.02);
-            box-shadow: 0 8px 25px rgba(255,255,255,0.15);
         }
-        
+
         .start-btn:active {
             transform: scale(0.96);
             background: rgba(255, 255, 255, 0.1);
@@ -171,96 +192,100 @@
         .spinner {
             width: 32px;
             height: 32px;
-            border: 3px solid rgba(255,255,255,0.1);
+            border: 3px solid rgba(255,255,255,0.2);
             border-radius: 50%;
             border-top-color: #fff;
-            animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            animation: spin 1s infinite cubic-bezier(0.55, 0.15, 0.45, 0.85);
             margin: 0 auto;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* --- VisionOS Style HUD (悬浮控制栏) --- */
+        /* --- HUD (底部悬浮栏) - 极致 Liquid Glass --- */
         #hud-controls {
             position: absolute;
-            bottom: 30px;
+            bottom: 40px;
             left: 50%;
-            transform: translateX(-50%) translateY(150%);
+            transform: translateX(-50%) translateY(200%); /* 初始隐藏 */
             display: flex;
-            gap: 12px;
-            padding: 8px;
+            gap: 24px;
+            padding: 14px 28px;
             
-            /* Liquid Glass Effect */
-            background: rgba(120, 120, 120, 0.15); /* 略微亮一点的底色 */
-            backdrop-filter: blur(30px) saturate(180%);
-            -webkit-backdrop-filter: blur(30px) saturate(180%);
-            border-radius: 100px; /* 胶囊形状 */
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.2);
+            /* Liquid Glass 核心样式 - 更透 */
+            background: rgba(255, 255, 255, 0.05); 
+            backdrop-filter: blur(30px) saturate(220%) brightness(1.1);
+            -webkit-backdrop-filter: blur(30px) saturate(220%) brightness(1.1);
+            border-radius: 60px;
             
+            /* 复杂的光影边框 */
+            box-shadow: 
+                0 25px 50px rgba(0,0,0,0.25),               /* 投影 */
+                inset 0 1px 0 rgba(255,255,255,0.5),        /* 顶部强高光 */
+                inset 0 -1px 0 rgba(255,255,255,0.1),       /* 底部弱反光 */
+                0 0 0 1px rgba(255,255,255,0.15);           /* 外轮廓 */
+
             z-index: 10;
             transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
         }
 
         .hud-btn {
-            background: transparent;
-            border: none;
-            color: rgba(255, 255, 255, 0.85);
             width: 44px;
             height: 44px;
             border-radius: 50%;
+            background: transparent;
+            border: 1px solid transparent;
+            color: rgba(255,255,255,0.9);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transition: all 0.3s ease;
             position: relative;
         }
+        
+        .hud-btn svg {
+            width: 26px;
+            height: 26px;
+            fill: currentColor;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }
 
-        /* 按钮悬停效果：变亮、轻微放大 */
+        /* 悬停/激活时的“水滴”效果 */
         .hud-btn:hover {
             background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.2);
             color: #fff;
             transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
 
-        .hud-btn:active {
-            transform: scale(0.9);
-            background: rgba(255,255,255,0.1);
-        }
-
-        /* 激活状态 (如：体感开启) */
         .hud-btn.active {
-            background: rgba(255, 255, 255, 0.9);
-            color: #000; /* 激活时反色，VisionOS 常用手法 */
-            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 20px rgba(255,255,255,0.6);
+            transform: scale(1.05);
         }
 
-        .hud-btn svg {
-            width: 22px;
-            height: 22px;
-            fill: currentColor;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
-        }
-        
-        /* Tooltip 样式优化 */
+        /* Tooltip 提示 */
         .hud-btn::before {
             content: attr(data-tooltip);
             position: absolute;
-            top: -45px;
+            top: -55px;
             left: 50%;
             transform: translateX(-50%) scale(0.8);
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(10px);
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 12px;
+            background: rgba(30,30,30,0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
             color: #fff;
-            white-space: nowrap;
             opacity: 0;
             pointer-events: none;
-            transition: all 0.2s ease;
-            font-weight: 500;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: nowrap;
         }
         .hud-btn:hover::before {
             opacity: 1;
@@ -272,22 +297,20 @@
             position: absolute;
             top: 24px;
             left: 50%;
-            transform: translateX(-50%) translateY(-100px);
-            
-            /* VisionOS Toast */
-            background: rgba(40, 40, 40, 0.6);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.15);
-            
+            transform: translateX(-50%) translateY(-150px);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
             color: #fff;
-            padding: 12px 28px;
+            padding: 10px 24px;
             border-radius: 50px;
             font-size: 14px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            gap: 8px;
+            /* Glassy Toast */
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.4);
+            border: 1px solid rgba(255,255,255,0.2);
             z-index: 200;
             transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
             white-space: nowrap;
@@ -295,8 +318,8 @@
         #toast-msg.show {
             transform: translateX(-50%) translateY(0);
         }
-        
-        /* 手势提示图标 */
+
+        /* 手势提示 */
         #gesture-hint {
             position: absolute;
             top: 50%;
@@ -310,8 +333,8 @@
         .hand-icon {
             width: 64px;
             height: 64px;
-            fill: rgba(255,255,255,0.9);
-            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+            fill: rgba(255,255,255,0.95);
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.5));
             animation: swipe 2s infinite;
         }
         @keyframes swipe {
@@ -320,32 +343,30 @@
             80% { opacity: 1; }
             100% { transform: translateX(20px) rotate(10deg); opacity: 0; }
         }
-
     </style>
 </head>
-<body class="">
+<body>
 
-    <!-- 主容器：用于统一旋转 (实现强制横屏) -->
+    <!-- 主容器 -->
     <div id="main-container">
 
         <!-- 启动页 -->
         <div id="landing-page">
             <div class="landing-bg" id="landing-bg"></div>
             <div class="landing-content">
-                <h1>VR 沉浸视界</h1>
-                <p class="subtitle">360° 全景 · 体感交互 · 空间音频</p>
+                <h1>VR 沉浸空间</h1>
+                <p class="subtitle">360° 全景 · 空间音频 · 体感交互</p>
                 
                 <button class="start-btn" id="startBtn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/> <!-- Play Icon -->
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/> 
                     </svg>
                     进入空间
                 </button>
 
                 <div class="loader-container" id="loader">
                     <div class="spinner"></div>
-                    <p style="font-size:13px; margin-top:12px; color:rgba(255,255,255,0.6)">正在加载高分辨率场景...</p>
-                    <p id="loading-status" style="font-size:11px; margin-top:4px; color:rgba(255,255,255,0.4)">连接服务器...</p>
+                    <p style="font-size:13px; margin-top:12px; color:rgba(255,255,255,0.8); font-weight:500;">加载场景资源...</p>
                 </div>
             </div>
         </div>
@@ -353,14 +374,14 @@
         <!-- 全景图容器 -->
         <div id="panorama"></div>
 
-        <!-- 交互提示 -->
+        <!-- 手势提示 -->
         <div id="gesture-hint">
             <svg class="hand-icon" viewBox="0 0 24 24">
                 <path d="M9,11.24V7.5C9,6.12 10.12,5 11.5,5C12.88,5 14,6.12 14,7.5V11.24C15.53,11.6 17.5,12.53 18.26,14.65L19.46,18C19.83,19.03 19.3,20.19 18.27,20.56C17.24,20.93 16.08,20.4 15.71,19.37L15.34,18.34L14.5,16L13.67,18.34L13.3,19.37C12.93,20.4 11.77,20.93 10.74,20.56C9.71,20.19 9.18,19.03 9.55,18L10.75,14.65C11.5,12.53 13.47,11.6 15,11.24V7.5C15,5.57 13.43,4 11.5,4C9.57,4 8,5.57 8,7.5V11.24C6.47,11.6 4.5,12.53 3.74,14.65L2.54,18C2.17,19.03 2.7,20.19 3.73,20.56C4.76,20.93 5.92,20.4 6.29,19.37L6.66,18.34L7.5,16L8.33,18.34L8.7,19.37C9.07,20.4 10.23,20.93 11.26,20.56C12.29,20.19 12.82,19.03 12.45,18L11.25,14.65C10.5,12.53 8.53,11.6 7,11.24V7.5C7,6.12 8.12,5 9.5,5C10.88,5 12,6.12 12,7.5V11.24H9Z"/>
             </svg>
         </div>
 
-        <!-- VisionOS Style HUD -->
+        <!-- 底部控制栏 -->
         <div id="hud-controls">
             <button class="hud-btn" id="btn-zoom-out" data-tooltip="缩小">
                 <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
@@ -374,10 +395,6 @@
                 <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </button>
 
-            <button class="hud-btn" id="btn-fullscreen" data-tooltip="切换全屏">
-                <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-            </button>
-
             <button class="hud-btn" id="btn-zoom-in" data-tooltip="放大">
                 <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             </button>
@@ -385,27 +402,19 @@
 
     </div>
 
-    <!-- 顶部通知 (放在Main Container外，独立控制旋转) -->
+    <!-- 顶部通知 -->
     <div id="toast-msg">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right:2px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
         <span id="toast-text">欢迎进入 VR 空间</span>
     </div>
 
     <script>
         // --- 核心配置 ---
+        // 路径已修改为 /img/P1.jpg (绝对路径)
         const IMAGE_SOURCES = [
-            { 
-                url: "https://cllli.oss-cn-beijing.aliyuncs.com/img/panoramic/PXL_20251207_080736344.PHOTOSPHERE.jpg", 
-                label: "OSS 高清源" 
-            },
-            { 
-                url: "PXL_20251207_080736344.PHOTOSPHERE.jpg", 
-                label: "本地备份源" 
-            },
-            { 
-                url: "https://pannellum.org/images/alma.jpg", 
-                label: "演示示例图" 
-            }
+            { url: "/img/P1.jpg", label: "本地全景图 P1" },
+            { url: "https://cllli.oss-cn-beijing.aliyuncs.com/img/panoramic/PXL_20251207_080736344.PHOTOSPHERE.jpg", label: "云端备份" },
+            { url: "https://pannellum.org/images/alma.jpg", label: "演示示例图" }
         ];
 
         let currentSourceIndex = 0;
@@ -418,46 +427,41 @@
         const landingPage = document.getElementById('landing-page');
         const landingBg = document.getElementById('landing-bg');
         const loader = document.getElementById('loader');
-        const loadingStatus = document.getElementById('loading-status');
-        const panoramaContainer = document.getElementById('panorama');
         const hudControls = document.getElementById('hud-controls');
         const gestureHint = document.getElementById('gesture-hint');
         const toast = document.getElementById('toast-msg');
         const toastText = document.getElementById('toast-text');
 
-        // 设置启动页背景
-        landingBg.style.backgroundImage = `url('${IMAGE_SOURCES[0].url}')`;
+        // 设置启动页背景 (如果本地图片不存在可能会显示为空白或错误，这里依赖Pannellum加载后回调更新)
+        // 尝试设置背景，如果失败则静默
+        const img = new Image();
+        img.src = IMAGE_SOURCES[0].url;
+        img.onload = () => { landingBg.style.backgroundImage = `url('${IMAGE_SOURCES[0].url}')`; };
+        img.onerror = () => { landingBg.style.backgroundImage = `url('${IMAGE_SOURCES[1].url}')`; }; // 回退
 
         // 按钮元素
         const btnGyro = document.getElementById('btn-gyro');
         const btnAuto = document.getElementById('btn-auto');
-        const btnFullscreen = document.getElementById('btn-fullscreen');
         const btnZoomIn = document.getElementById('btn-zoom-in');
         const btnZoomOut = document.getElementById('btn-zoom-out');
 
         // --- 初始化流程 ---
         startBtn.addEventListener('click', async () => {
-            // UI 更新
             startBtn.style.display = 'none';
             document.querySelector('.subtitle').style.display = 'none';
-            document.querySelector('h1').innerText = "加载全景资源...";
+            document.querySelector('h1').innerText = "正在初始化...";
             loader.style.display = 'block';
 
-            // 1. 尝试全屏
             await requestFullscreenSafely();
 
-            // 2. 尝试锁定横屏 (Android Chrome 友好)
             try {
                 if (screen.orientation && screen.orientation.lock) {
                     await screen.orientation.lock('landscape');
                 }
             } catch (e) {
-                console.log("Orientation lock not supported or failed (expected on iOS).");
-                // iOS 或不支持 Lock API 的设备：开启 CSS 强制模式
                 document.body.classList.add('force-landscape');
             }
 
-            // 3. 申请陀螺仪权限 (iOS 13+)
             let permissionGranted = false;
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
@@ -470,29 +474,21 @@
                 permissionGranted = true; 
             }
 
-            // 4. 启动查看器
             setTimeout(() => {
                 initPannellum(permissionGranted);
             }, 600);
         });
 
-        // 监听屏幕方向变化，动态调整
         window.addEventListener("orientationchange", function() {
-            // 如果物理方向变成了横屏，移除强制CSS旋转，恢复正常
             if (window.orientation === 90 || window.orientation === -90) {
                 document.body.classList.remove('force-landscape');
-            } else {
-                // 如果是竖屏，且我们想要强制横屏效果，可以加回来
-                // 但为了不打扰用户手动退出，这里我们可以选择性开启
-                // 目前逻辑：只有点击开始后，在不支持API锁定的设备上默认加上
             }
             if(viewer) viewer.resize();
         });
 
         function initPannellum(enableGyroInit) {
             const source = IMAGE_SOURCES[currentSourceIndex];
-            loadingStatus.innerText = `正在获取: ${source.label}...`;
-
+            
             if (viewer) {
                 try { viewer.destroy(); } catch(e) {}
             }
@@ -516,44 +512,39 @@
                 "crossOrigin": "anonymous"
             });
 
-            // 错误处理与自动降级
             viewer.on('error', (e) => {
                 console.error("加载失败:", e);
                 if (currentSourceIndex < IMAGE_SOURCES.length - 1) {
                     currentSourceIndex++;
                     const nextSource = IMAGE_SOURCES[currentSourceIndex];
-                    showToast(`正在切换至备用线路: ${nextSource.label}`);
+                    showToast(`正在切换线路: ${nextSource.label}`);
+                    // 背景图也跟着切换
+                    landingBg.style.backgroundImage = `url('${nextSource.url}')`;
                     setTimeout(() => { initPannellum(enableGyroInit); }, 1000);
                 } else {
-                    loadingStatus.innerText = "资源加载失败";
-                    showToast("无法加载图片，请检查网络", "error");
+                    showToast("资源加载失败，请检查网络", "error");
                     startBtn.style.display = 'flex';
-                    startBtn.innerText = "重试连接";
+                    startBtn.innerText = "重试";
                     loader.style.display = 'none';
                 }
             });
 
             viewer.on('load', () => {
-                // 更新背景
-                if (currentSourceIndex > 0) {
-                    landingBg.style.backgroundImage = `url('${IMAGE_SOURCES[currentSourceIndex].url}')`;
+                if (currentSourceIndex === 0) {
+                     landingBg.style.backgroundImage = `url('${IMAGE_SOURCES[0].url}')`;
                 }
-
-                // 隐藏启动页
+                
                 landingPage.style.opacity = '0';
                 setTimeout(() => landingPage.style.display = 'none', 600);
-                panoramaContainer.style.opacity = '1';
+                document.getElementById('panorama').style.opacity = '1';
 
-                // 显示 HUD
                 hudControls.style.transform = 'translateX(-50%) translateY(0)';
 
-                // 手势提示
                 setTimeout(() => {
                     gestureHint.style.opacity = '0.8';
                     setTimeout(() => { gestureHint.style.opacity = '0'; }, 2500);
                 }, 800);
 
-                // 初始状态
                 isAutoRotating = true;
                 updateAutoBtnIcon();
 
@@ -562,17 +553,14 @@
                 }
             });
 
-            // 交互打断自动旋转
             viewer.on('mousedown', () => { isAutoRotating = false; updateAutoBtnIcon(); });
             viewer.on('touchstart', () => { isAutoRotating = false; updateAutoBtnIcon(); });
         }
 
-        // --- UI 工具函数 ---
         function showToast(text, type = "info") {
             toastText.innerText = text;
-            toast.className = ''; // reset
-            if(type === 'error') toast.style.borderLeft = '3px solid var(--error-color)';
-            else toast.style.borderLeft = 'none';
+            toast.className = '';
+            if(type === 'error') toast.style.border = '1px solid var(--error-color)';
             
             toast.classList.add('show');
             setTimeout(() => {
@@ -580,7 +568,6 @@
             }, 3000);
         }
 
-        // --- 功能控制 ---
         function toggleGyro(forceState) {
             if (!viewer) return;
             const newState = forceState !== undefined ? forceState : !isGyroEnabled;
@@ -590,9 +577,7 @@
                     isGyroEnabled = true;
                     btnGyro.classList.add('active');
                     showToast("体感模式: 开");
-                } catch(e) {
-                    console.log("Gyro failed");
-                }
+                } catch(e) {}
             } else {
                 viewer.stopOrientation();
                 isGyroEnabled = false;
@@ -617,8 +602,8 @@
 
         function updateAutoBtnIcon() {
             const path = isAutoRotating 
-                ? "M6 19h4V5H6v14zm8-14v14h4V5h-4z" // Pause
-                : "M8 5v14l11-7z"; // Play
+                ? "M6 19h4V5H6v14zm8-14v14h4V5h-4z" 
+                : "M8 5v14l11-7z"; 
             btnAuto.querySelector('path').setAttribute('d', path);
             if(isAutoRotating) btnAuto.classList.add('active');
             else btnAuto.classList.remove('active');
@@ -636,24 +621,9 @@
             try {
                 if (docEl.requestFullscreen) await docEl.requestFullscreen();
                 else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
-            } catch(e) {
-                console.log("Fullscreen request denied/failed");
-            }
+            } catch(e) {}
         }
 
-        btnFullscreen.addEventListener('click', () => {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                requestFullscreenSafely();
-                // 再次尝试锁定方向
-                try { if(screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape'); } catch(e){}
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
-                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-                // 退出全屏时移除强制CSS
-                document.body.classList.remove('force-landscape');
-            }
-        });
-        
         const handleResize = () => { if(viewer) viewer.resize(); };
         window.addEventListener('resize', handleResize);
         document.addEventListener('fullscreenchange', handleResize);
