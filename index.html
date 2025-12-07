@@ -1,888 +1,312 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>沉浸式全景体验</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:;">
     
-    <!-- 性能优化：预连接 CDN -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <title>大连建筑群可视化 | XIANG VISUALS</title>
     
-    <!-- 引入 Pannellum 库 (添加 defer 属性，不阻塞页面渲染) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js" defer></script>
-
-    <style>
-        :root {
-            --text-color: #ffffff;
-            --error-color: #ff4757;
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --primary-color: #00f2fe;
-        }
-
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* 主容器 */
-        #main-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.5s ease;
-        }
-
-        /* 强制横屏的 CSS 类 (iOS兼容) */
-        @media screen and (orientation: portrait) {
-            body.force-landscape #main-container {
-                width: 100vh;
-                height: 100vw;
-                transform: rotate(90deg);
-                transform-origin: top left;
-                position: absolute;
-                top: 0;
-                left: 100%; 
-            }
-            body.force-landscape #toast-msg,
-            body.force-landscape #gallery-panel {
-                transform: rotate(90deg);
-                position: fixed;
-            }
-            body.force-landscape #gallery-panel {
-                bottom: 50%;
-                left: 50%;
-                transform: translate(-50%, 50%) rotate(90deg);
-                width: 80vh;
-            }
-        }
-
-        /* 全景容器 */
-        #panorama {
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            transition: opacity 1.5s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        /* --- 启动页 (Landing Page) --- */
-        #landing-page {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            color: var(--text-color);
-            transition: opacity 0.6s ease;
-        }
-
-        .landing-bg {
-            position: absolute;
-            top: -5%;
-            left: -5%;
-            width: 110%;
-            height: 110%;
-            background-color: #111; /* 加载前的默认底色 */
-            background-size: cover;
-            background-position: center;
-            filter: blur(30px) brightness(0.7); /* 稍微降低亮度以突出前景 */
-            z-index: -1;
-            transition: opacity 1s ease-in-out; 
-            /* 性能优化：提示浏览器此元素会变化 */
-            will-change: transform, opacity;
-        }
-
-        /* 参考 Liquid Glass 风格的卡片 */
-        .landing-content {
-            background: var(--glass-bg);
-            backdrop-filter: blur(40px) saturate(200%) brightness(1.2);
-            -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.2);
-            padding: 30px;
-            border-radius: 44px;
-            box-shadow: 
-                0 30px 60px rgba(0,0,0,0.3),
-                inset 0 1px 0 rgba(255,255,255,0.7),
-                inset 0 -1px 0 rgba(255,255,255,0.2),
-                0 0 0 1px rgba(255,255,255,0.1);
-            border: 1px solid var(--glass-border);
-            text-align: center;
-            max-width: 90%;
-            width: 340px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            /* 初始状态稍微下移，配合JS做入场动画 */
-            transform: translateY(20px);
-            opacity: 0;
-            animation: contentFadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-            animation-delay: 0.2s;
-        }
-        
-        /* 移动端优化 */
-        @media (max-width: 600px) {
-            .landing-content {
-                padding: 24px 20px;
-                width: 85%;
-                border-radius: 32px;
-            }
-            h1 {
-                font-size: 20px;
-            }
-            p.subtitle {
-                font-size: 12px;
-                margin-bottom: 15px;
-            }
-            .thumb-item {
-                flex: 0 0 60px;
-                height: 60px;
-                border-radius: 12px;
-            }
-        }
-
-        @keyframes contentFadeIn {
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        h1 {
-            margin: 0 0 5px 0;
-            font-size: 24px;
-            font-weight: 700;
-            color: #fff;
-            text-shadow: 0 2px 15px rgba(255,255,255,0.4);
-        }
-
-        p.subtitle {
-            font-size: 13px;
-            color: rgba(255,255,255,0.8);
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        /* --- 首页缩略图选择器 --- */
-        .landing-gallery {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            width: 100%;
-            padding: 10px 5px;
-            margin-bottom: 20px;
-            scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        .landing-gallery::-webkit-scrollbar { display: none; }
-
-        .thumb-item {
-            flex: 0 0 70px;
-            height: 70px;
-            border-radius: 16px;
-            overflow: hidden;
-            position: relative;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.2s ease;
-            background: rgba(0,0,0,0.2);
-        }
-
-        .thumb-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s;
-        }
-
-        .thumb-item:hover img {
-            transform: scale(1.1);
-        }
-
-        .thumb-item.active {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
-            transform: translateY(-2px);
-        }
-
-        .thumb-label {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            font-size: 10px;
-            color: #fff;
-            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-            padding: 12px 2px 2px 2px;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* 启动按钮 */
-        .start-btn {
-            position: relative;
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 14px 40px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 100px;
-            cursor: pointer;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            transition: transform 0.2s, background 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.6);
-            width: 100%;
-            justify-content: center;
-        }
-
-        .start-btn:active {
-            transform: scale(0.96);
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* 加载动画 */
-        .loader-container {
-            display: none;
-            margin-top: 20px;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 50;
-        }
-        .spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid rgba(255,255,255,0.2);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s infinite cubic-bezier(0.55, 0.15, 0.45, 0.85);
-            margin: 0 auto;
-            filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* --- HUD (底部悬浮栏) --- */
-        #hud-controls {
-            position: absolute;
-            bottom: 40px;
-            left: 50%;
-            transform: translateX(-50%) translateY(200%); /* 初始隐藏 */
-            display: flex;
-            gap: 20px;
-            padding: 12px 24px;
-            
-            background: rgba(255, 255, 255, 0.05); 
-            backdrop-filter: blur(30px) saturate(220%) brightness(1.1);
-            -webkit-backdrop-filter: blur(30px) saturate(220%) brightness(1.1);
-            border-radius: 60px;
-            
-            box-shadow: 
-                0 25px 50px rgba(0,0,0,0.25),
-                inset 0 1px 0 rgba(255,255,255,0.5),
-                inset 0 -1px 0 rgba(255,255,255,0.1),
-                0 0 0 1px rgba(255,255,255,0.15);
-
-            z-index: 20;
-            transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
-        }
-        
-        /* 闲置状态样式 */
-        #hud-controls.idle {
-            opacity: 0.3; /* 变透明 */
-        }
-        #hud-controls:hover, #hud-controls:active {
-            opacity: 1 !important; /* 交互时立刻显示 */
-        }
-
-        .hud-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: transparent;
-            border: 1px solid transparent;
-            color: rgba(255,255,255,0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        
-        .hud-btn svg {
-            width: 24px;
-            height: 24px;
-            fill: currentColor;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-        }
-
-        .hud-btn:hover, .hud-btn.active {
-            background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.2);
-            color: #fff;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
-
-        /* --- 场景选择面板 (Gallery Panel - HUD用) --- */
-        #gallery-panel {
-            position: absolute;
-            bottom: 110px; /* HUD 上方 */
-            left: 50%;
-            transform: translateX(-50%) scale(0.9);
-            width: 300px;
-            max-height: 0; /* 默认关闭 */
-            overflow: hidden;
-            opacity: 0;
-            pointer-events: none;
-            
-            background: rgba(30, 30, 30, 0.4);
-            backdrop-filter: blur(35px) saturate(180%);
-            -webkit-backdrop-filter: blur(35px) saturate(180%);
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-            
-            transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
-            z-index: 15;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #gallery-panel.open {
-            max-height: 400px; /* 展开高度 */
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-            pointer-events: auto;
-            padding: 10px;
-        }
-
-        .gallery-header {
-            padding: 10px 15px;
-            font-size: 14px;
-            color: rgba(255,255,255,0.6);
-            font-weight: 600;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 5px;
-        }
-
-        .gallery-list {
-            overflow-y: auto;
-            max-height: 300px;
-            padding-right: 5px;
-        }
-        .gallery-list::-webkit-scrollbar { width: 4px; }
-        .gallery-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-
-        .scene-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            margin-bottom: 8px;
-            border-radius: 16px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .scene-item:hover { background: rgba(255,255,255,0.15); }
-        .scene-item.active { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); }
-
-        .scene-name { font-size: 14px; color: #fff; margin-left: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .scene-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.3); }
-        .scene-item.active .scene-dot { background: var(--primary-color); box-shadow: 0 0 8px var(--primary-color); }
-
-        /* --- 顶部通知 Toast --- */
-        #toast-msg {
-            position: absolute;
-            top: 24px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-150px);
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(30px);
-            -webkit-backdrop-filter: blur(30px);
-            color: #fff;
-            padding: 10px 24px;
-            border-radius: 50px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.4);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            z-index: 200;
-            transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
-            white-space: nowrap;
-        }
-        #toast-msg.show {
-            transform: translateX(-50%) translateY(0);
-        }
-
-    </style>
-</head>
-<body>
-
-    <!-- 主容器 -->
-    <div id="main-container">
-
-        <!-- 启动页 (Landing Page) -->
-        <div id="landing-page">
-            <div class="landing-bg" id="landing-bg"></div>
-            <div class="landing-content">
-                <h1>VR 沉浸空间</h1>
-                <p class="subtitle">选择一个场景开始探索</p>
-                
-                <!-- 首页场景选择器 -->
-                <div class="landing-gallery" id="landing-gallery">
-                    <!-- 缩略图由 JS 生成 -->
-                </div>
-
-                <button class="start-btn" id="startBtn">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/> 
-                    </svg>
-                    进入空间
-                </button>
-            </div>
-        </div>
-
-        <!-- 全局 Loading -->
-        <div class="loader-container" id="loader">
-            <div class="spinner"></div>
-            <p style="font-size:12px; margin-top:8px; color:rgba(255,255,255,0.8); text-align:center;">Loading...</p>
-        </div>
-
-        <!-- 全景图容器 -->
-        <div id="panorama"></div>
-
-        <!-- 底部控制栏 -->
-        <div id="hud-controls">
-            <!-- 场景选择按钮 -->
-            <button class="hud-btn" id="btn-gallery" data-tooltip="切换场景">
-                <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM10 9h8v2h-8zm0 3h4v2h-4zm0-6h8v2h-8z"/></svg>
-            </button>
-            
-            <div style="width:1px; height:24px; background:rgba(255,255,255,0.1); margin:auto 0;"></div>
-
-            <!-- 自动巡航 -->
-            <button class="hud-btn" id="btn-auto" data-tooltip="自动巡航">
-                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </button>
-
-            <!-- 开启体感 -->
-            <button class="hud-btn" id="btn-gyro" data-tooltip="开启体感">
-                <svg viewBox="0 0 24 24"><path d="M7 3h10c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2zm0 2v14h10V5H7zm2 6h6v2H9v-2z"/></svg>
-            </button>
-            
-            <div style="width:1px; height:24px; background:rgba(255,255,255,0.1); margin:auto 0;"></div>
-
-            <!-- 全屏按钮 -->
-            <button class="hud-btn" id="btn-fullscreen" data-tooltip="全屏">
-                <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-            </button>
-        </div>
-
-        <!-- 场景选择面板 (HUD中) -->
-        <div id="gallery-panel">
-            <div class="gallery-header">场景列表</div>
-            <div class="gallery-list" id="gallery-list-container">
-                <!-- 列表项由 JS 生成 -->
-            </div>
-        </div>
-
-    </div>
-
-    <!-- 顶部通知 -->
-    <div id="toast-msg">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-        <span id="toast-text">欢迎进入 VR 空间</span>
-    </div>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <link rel="stylesheet" href="styles.css">
 
     <script>
-        // --- 场景列表配置 ---
-        const SCENE_LIST = [
-            { 
-                id: 0, 
-                name: "东港 (P1)", 
-                url: "/img/P1.jpg", 
-                thumb: "/img/P1-1.jpg"
-            },
-            { 
-                id: 1, 
-                name: "阿尔卑斯山", 
-                url: "https://pannellum.org/images/alma.jpg", 
-                thumb: "https://pannellum.org/images/alma.jpg" 
-            },
-        ];
-
-        let currentSceneId = 0;
-        let viewer;
-        let isAutoRotating = false;
-        let isGyroEnabled = false;
-        let idleTimer;
-
-        // --- DOM 元素 ---
-        const startBtn = document.getElementById('startBtn');
-        const landingPage = document.getElementById('landing-page');
-        const landingBg = document.getElementById('landing-bg');
-        const landingGallery = document.getElementById('landing-gallery'); 
-        const loader = document.getElementById('loader');
-        const hudControls = document.getElementById('hud-controls');
-        const galleryPanel = document.getElementById('gallery-panel');
-        const galleryListContainer = document.getElementById('gallery-list-container');
-        const toast = document.getElementById('toast-msg');
-        const toastText = document.getElementById('toast-text');
-
-        // 定义按钮变量
-        const btnGyro = document.getElementById('btn-gyro');
-        const btnAuto = document.getElementById('btn-auto');
-        const btnFullscreen = document.getElementById('btn-fullscreen');
-
-        // --- 优化核心 1: 首页背景使用 Bing 每日壁纸 ---
-        const BING_API_URL = "https://bing.biturl.top/?resolution=1920&format=image&index=0&mkt=zh-CN";
-
-        function loadLandingBackground() {
-            const img = new Image();
-            img.src = BING_API_URL;
-            img.onload = () => {
-                landingBg.style.backgroundImage = `url('${BING_API_URL}')`;
-                prefetchFirstScene();
-            };
-            img.onerror = () => {
-                landingBg.style.backgroundImage = `url('${SCENE_LIST[0].url}')`;
-            };
-        }
-        
-        loadLandingBackground();
-
-        function prefetchFirstScene() {
-            const preloadLink = document.createElement('link');
-            preloadLink.rel = 'prefetch';
-            preloadLink.as = 'image';
-            preloadLink.href = SCENE_LIST[0].url;
-            document.head.appendChild(preloadLink);
-            console.log("正在预加载 VR 场景资源...");
-        }
-
-        // --- 渲染首页缩略图列表 ---
-        function renderLandingGallery() {
-            landingGallery.innerHTML = '';
-            SCENE_LIST.forEach((scene, index) => {
-                const item = document.createElement('div');
-                item.className = `thumb-item ${index === currentSceneId ? 'active' : ''}`;
-                item.onclick = () => selectSceneFromLanding(index);
-                item.innerHTML = `
-                    <img src="${scene.thumb}" alt="${scene.name}">
-                    <div class="thumb-label">${scene.name}</div>
-                `;
-                landingGallery.appendChild(item);
-            });
-        }
-        renderLandingGallery();
-
-        function selectSceneFromLanding(index) {
-            currentSceneId = index;
-            renderLandingGallery(); 
-        }
-
-        // --- 渲染 HUD 场景列表 (进入后) ---
-        function renderHUDGallery() {
-            galleryListContainer.innerHTML = '';
-            SCENE_LIST.forEach((scene, index) => {
-                const item = document.createElement('div');
-                item.className = `scene-item ${index === currentSceneId ? 'active' : ''}`;
-                item.onclick = () => switchSceneInVR(index);
-                item.innerHTML = `
-                    <div class="scene-dot"></div>
-                    <div class="scene-name">${scene.name}</div>
-                `;
-                galleryListContainer.appendChild(item);
-            });
-        }
-        renderHUDGallery(); 
-
-        // --- VR 内切换场景逻辑 ---
-        function switchSceneInVR(index) {
-            if (index === currentSceneId && galleryPanel.classList.contains('open')) {
-                toggleGalleryPanel();
-                return;
-            }
-
-            currentSceneId = index;
-            toggleGalleryPanel(); 
-            renderHUDGallery(); 
-            
-            loader.style.display = 'block';
-            document.getElementById('panorama').style.opacity = '0.5';
-
-            initPannellum(isGyroEnabled);
-        }
-
-        // --- 启动流程 ---
-        startBtn.addEventListener('click', async () => {
-            startBtn.style.display = 'none';
-            document.querySelector('.subtitle').style.display = 'none';
-            landingGallery.style.opacity = '0';
-            
-            document.querySelector('h1').innerText = "VR 环境载入中...";
-            loader.style.display = 'block';
-
-            // 尝试进入全屏
-            await toggleFullscreen(true);
-
-            try {
-                if (screen.orientation && screen.orientation.lock) {
-                    await screen.orientation.lock('landscape');
-                }
-            } catch (e) {
-                document.body.classList.add('force-landscape');
-            }
-
-            let permissionGranted = false;
-            // 检查 Pannellum 是否已加载
-            if (typeof pannellum === 'undefined') {
-                await new Promise(resolve => {
-                    const check = setInterval(() => {
-                        if (typeof pannellum !== 'undefined') {
-                            clearInterval(check);
-                            resolve();
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans SC"', 'Inter', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            black: '#050505',
+                            dark: '#0a0a0a',
+                            panel: '#111111',
+                            gray: '#888888',
+                            light: '#f5f5f5',
+                            accent: '#ffffff'
                         }
-                    }, 100);
-                });
-            }
-
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const state = await DeviceOrientationEvent.requestPermission();
-                    if (state === 'granted') permissionGranted = true;
-                } catch (e) {
-                    console.error("Gyro permission error:", e);
+                    },
+                    backgroundImage: {
+                        'grid-pattern': "linear-gradient(to right, #222 1px, transparent 1px), linear-gradient(to bottom, #222 1px, transparent 1px)",
+                    }
                 }
-            } else {
-                permissionGranted = true; 
             }
-
-            setTimeout(() => {
-                initPannellum(permissionGranted);
-            }, 300);
-        });
-
-        // --- Pannellum 核心 ---
-        function initPannellum(enableGyroInit) {
-            const scene = SCENE_LIST[currentSceneId];
-            
-            if (viewer) {
-                try { viewer.destroy(); } catch(e) {}
-            }
-
-            viewer = pannellum.viewer('panorama', {
-                "type": "equirectangular",
-                "panorama": scene.url,
-                "autoLoad": true,
-                "compass": false,
-                "showZoomCtrl": false,
-                "mouseZoom": false,
-                "showControls": false,
-                "hfov": 100,
-                "minHfov": 50,
-                "maxHfov": 120,
-                "pitch": 0,
-                "yaw": 0,
-                "friction": 0.05,
-                "autoRotate": -2,
-                "autoRotateInactivityDelay": 3000,
-                "crossOrigin": "anonymous"
-            });
-
-            viewer.on('error', (e) => {
-                console.error("加载失败:", e);
-                showToast(`场景 "${scene.name}" 加载失败`, "error");
-                loader.style.display = 'none';
-                
-                if(landingPage.style.display !== 'none') {
-                    startBtn.style.display = 'flex';
-                    document.querySelector('h1').innerText = "加载失败，请重试";
-                }
-            });
-
-            viewer.on('load', () => {
-                landingPage.style.opacity = '0';
-                setTimeout(() => landingPage.style.display = 'none', 600);
-                
-                document.getElementById('panorama').style.opacity = '1';
-                loader.style.display = 'none';
-
-                hudControls.style.transform = 'translateX(-50%) translateY(0)';
-
-                isAutoRotating = true;
-                updateAutoBtnIcon();
-
-                if (enableGyroInit || isGyroEnabled) {
-                    toggleGyro(true); 
-                }
-                
-                showToast(`已进入: ${scene.name}`);
-                renderHUDGallery();
-                resetIdleTimer(); // 启动闲置检测
-            });
-
-            viewer.on('mousedown', () => { 
-                isAutoRotating = false; 
-                updateAutoBtnIcon(); 
-                resetIdleTimer();
-            });
-            viewer.on('touchstart', () => { 
-                isAutoRotating = false; 
-                updateAutoBtnIcon(); 
-                resetIdleTimer();
-            });
         }
-
-        // --- 交互功能 ---
-
-        function toggleGalleryPanel() {
-            galleryPanel.classList.toggle('open');
-            document.getElementById('btn-gallery').classList.toggle('active');
-            resetIdleTimer(); // 操作菜单重置计时器
-        }
-        document.getElementById('btn-gallery').addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            toggleGalleryPanel();
-        });
-        
-        document.addEventListener('click', (e) => {
-            if (galleryPanel.classList.contains('open') && 
-                !galleryPanel.contains(e.target) && 
-                !document.getElementById('btn-gallery').contains(e.target)) {
-                toggleGalleryPanel();
-            }
-            resetIdleTimer(); // 全局点击重置计时器
-        });
-
-        function showToast(text, type = "info") {
-            toastText.innerText = text;
-            toast.className = '';
-            if(type === 'error') toast.style.border = '1px solid var(--error-color)';
-            
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
-        }
-
-        function toggleGyro(forceState) {
-            if (!viewer) return;
-            const newState = forceState !== undefined ? forceState : !isGyroEnabled;
-            if (newState) {
-                try {
-                    viewer.startOrientation();
-                    isGyroEnabled = true;
-                    btnGyro.classList.add('active');
-                    if(!forceState) showToast("体感模式: 开");
-                } catch(e) {}
-            } else {
-                viewer.stopOrientation();
-                isGyroEnabled = false;
-                btnGyro.classList.remove('active');
-                if(!forceState) showToast("体感模式: 关");
-            }
-            resetIdleTimer();
-        }
-        btnGyro.addEventListener('click', () => toggleGyro());
-
-        function toggleAutoRotate() {
-            if (!viewer) return;
-            if (isAutoRotating) {
-                viewer.stopAutoRotate();
-                isAutoRotating = false;
-            } else {
-                viewer.startAutoRotate(-2);
-                isAutoRotating = true;
-            }
-            updateAutoBtnIcon();
-            resetIdleTimer();
-        }
-        btnAuto.addEventListener('click', toggleAutoRotate);
-
-        function updateAutoBtnIcon() {
-            const path = isAutoRotating 
-                ? "M6 19h4V5H6v14zm8-14v14h4V5h-4z" 
-                : "M8 5v14l11-7z"; 
-            btnAuto.querySelector('path').setAttribute('d', path);
-            if(isAutoRotating) btnAuto.classList.add('active');
-            else btnAuto.classList.remove('active');
-        }
-
-        // --- 全屏控制逻辑 ---
-        async function toggleFullscreen(forceEnter = false) {
-            const docEl = document.documentElement;
-            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-
-            if (!isFullscreen || forceEnter === true) {
-                try {
-                    if (docEl.requestFullscreen) await docEl.requestFullscreen();
-                    else if (docEl.webkitRequestFullscreen) await docEl.webkitRequestFullscreen();
-                } catch(e) {}
-            } else {
-                try {
-                    if (document.exitFullscreen) await document.exitFullscreen();
-                    else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
-                } catch(e) {}
-            }
-            resetIdleTimer();
-        }
-        btnFullscreen.addEventListener('click', () => toggleFullscreen());
-
-        // --- 闲置检测逻辑 ---
-        function resetIdleTimer() {
-            // 清除旧计时器
-            clearTimeout(idleTimer);
-            // 恢复不透明
-            hudControls.classList.remove('idle');
-
-            // 重新开始计时，2秒后变淡
-            idleTimer = setTimeout(() => {
-                // 如果菜单是打开的，不要变淡
-                if (!galleryPanel.classList.contains('open')) {
-                    hudControls.classList.add('idle');
-                }
-            }, 2000);
-        }
-
-        // 监听全局交互以重置闲置计时器
-        ['mousemove', 'touchstart', 'touchmove', 'click'].forEach(evt => 
-            document.addEventListener(evt, resetIdleTimer)
-        );
-
-        const handleResize = () => { if(viewer) viewer.resize(); };
-        window.addEventListener('resize', handleResize);
-        document.addEventListener('fullscreenchange', handleResize);
-        window.addEventListener("orientationchange", function() {
-            if (window.orientation === 90 || window.orientation === -90) {
-                document.body.classList.remove('force-landscape');
-            }
-            if(viewer) viewer.resize();
-        });
-
     </script>
+</head>
+<body class="bg-brand-black text-brand-light font-sans antialiased selection:bg-white selection:text-black">
+
+    <nav class="fixed top-0 w-full z-50 bg-gradient-to-b from-black/90 to-transparent backdrop-blur-sm md:backdrop-blur-none border-b border-white/5 md:border-none transition-all duration-300">
+        <div class="px-6 md:px-12 py-4 md:py-6 flex justify-between items-center relative">
+            <a href="#" class="group flex items-center gap-2 relative z-50">
+                <div class="w-2 h-2 bg-white group-hover:bg-emerald-400 transition-colors"></div>
+                <span class="font-bold tracking-widest text-xs md:text-sm text-white">XIANG VISUALS</span>
+            </a>
+            <div class="hidden md:flex gap-8 text-xs font-mono font-medium tracking-widest text-gray-400">
+                <a href="#map-section" class="hover:text-white transition-colors">实时情报</a>
+                <a href="#archives" class="hover:text-white transition-colors">视觉档案</a>
+                <a href="#core" class="hover:text-white transition-colors">系统核心</a>
+            </div>
+            <button id="mobileMenuBtn" class="md:hidden text-white relative z-50 p-2 -mr-2">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <div id="mobileMenu" class="absolute top-full left-0 w-full bg-brand-black/95 backdrop-blur-xl border-b border-white/10 menu-closed md:hidden flex flex-col items-center py-8 gap-6 z-40">
+            <a href="#map-section" class="text-sm font-mono tracking-widest text-white hover:text-emerald-400 mobile-link">实时情报地图</a>
+            <a href="#archives" class="text-sm font-mono tracking-widest text-white hover:text-emerald-400 mobile-link">视觉档案</a>
+            <a href="#core" class="text-sm font-mono tracking-widest text-white hover:text-emerald-400 mobile-link">系统核心技术</a>
+            <div class="w-8 h-px bg-white/20 mt-2"></div>
+            <a href="mailto:contact@xiangvisuals.com" class="text-xs text-gray-500 tracking-widest">CONTACT@XIANGVISUALS.COM</a>
+        </div>
+    </nav>
+
+    <header class="relative h-screen w-full flex flex-col justify-end pb-24 md:pb-32 px-6 md:px-12 border-b border-white/5">
+        <div class="absolute inset-0 z-0">
+            <img src="https://cllli.oss-cn-beijing.aliyuncs.com/img/10.jpg" 
+                 alt="Dalian Skyline Abstract" 
+                 referrerpolicy="no-referrer"
+                 class="w-full h-full object-cover opacity-40 contrast-125 saturate-0 mix-blend-screen">
+            <div class="absolute inset-0 bg-gradient-to-t from-brand-black via-brand-black/70 to-brand-black/30"></div>
+            <div class="absolute inset-0 bg-grid-pattern opacity-[0.05] bg-grid"></div>
+        </div>
+        <div class="relative z-10 w-full max-w-[1800px] mx-auto fade-in-up">
+            <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
+                <div class="max-w-4xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="px-2 py-1 border border-white/20 text-[10px] font-mono text-emerald-400 tracking-widest uppercase bg-black/50 backdrop-blur-sm">UE5 Project</span>
+                        <div class="h-px w-12 bg-white/20"></div>
+                        <span class="text-[10px] font-mono text-brand-gray tracking-widest uppercase">Ver 0.9.1</span>
+                    </div>
+                    <h1 class="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-white mb-6">
+                        大连<br><span class="text-gray-600 font-serif italic font-light">DL-SKYSCRAPERS</span>
+                    </h1>
+                    <p class="text-brand-gray text-sm md:text-lg max-w-xl font-light leading-relaxed">
+                        基于UE5 City Sample的大连城市数字孪生项目。<br>
+                        探索赛博朋克美学与现实地理数据的融合边界。
+                    </p>
+                </div>
+                <div class="flex flex-col gap-4 font-mono text-xs text-brand-gray border-l border-white/10 pl-6 lg:mb-4">
+                    <div class="flex gap-12"><span class="opacity-50">坐标系</span><span class="text-white">38.9140° N, 121.6147° E</span></div>
+                    <div class="flex gap-12"><span class="opacity-50">资产数</span><span class="text-white">8,402 INSTANCES</span></div>
+                    <div class="flex gap-12">
+                        <span class="opacity-50">状态</span>
+                        <span class="text-emerald-500 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>在线</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="map-section" class="relative w-full h-[75vh] min-h-[600px] bg-brand-dark border-b border-white/5 overflow-hidden group">
+        <div class="absolute top-0 left-0 w-full h-14 z-20 flex justify-between items-center px-6 md:px-12 pointer-events-none bg-gradient-to-b from-black/90 to-transparent">
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <i data-lucide="map" class="w-4 h-4 text-white"></i>
+                <span class="text-xs font-mono font-bold text-white tracking-widest">实时数据地图</span>
+            </div>
+            <div class="hidden md:flex gap-4 pointer-events-auto bg-black/50 backdrop-blur px-4 py-1.5 rounded-full border border-white/5">
+                <div class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-[#34d399] shadow-[0_0_10px_#34d399]"></div><span class="text-[10px] text-gray-400">已建成</span></div>
+                <div class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-[#fbbf24] shadow-[0_0_10px_#fbbf24]"></div><span class="text-[10px] text-gray-400">建设中</span></div>
+                <div class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-[#f87171] shadow-[0_0_10px_#f87171]"></div><span class="text-[10px] text-gray-400">规划/代建</span></div>
+            </div>
+            <div class="flex gap-4 pointer-events-auto">
+                <button class="px-3 py-1 bg-white/10 hover:bg-white/20 text-[10px] font-mono text-white backdrop-blur-sm transition-colors border border-white/5" id="zoomCity">全市</button>
+                <button class="px-3 py-1 bg-white/10 hover:bg-white/20 text-[10px] font-mono text-white backdrop-blur-sm transition-colors border border-white/5" id="zoomDistrict">核心区</button>
+            </div>
+        </div>
+
+        <div class="absolute top-16 left-4 md:left-12 z-20 pointer-events-none flex flex-col gap-3 h-[calc(100%-5rem)]">
+            <button id="mobileStatsToggle" class="md:hidden pointer-events-auto bg-brand-dark/90 backdrop-blur border border-white/10 text-white px-4 py-2 text-xs font-mono tracking-widest rounded-full flex items-center gap-2 shadow-lg w-max">
+                <i data-lucide="bar-chart-2" class="w-3 h-3 text-emerald-400"></i> 数据统计
+            </button>
+            
+            <div id="statsPanel" class="hud-panel p-4 pointer-events-auto transition-all duration-300 w-64 hidden md:block">
+                <div class="flex justify-between items-center md:hidden mb-2 pb-2 border-b border-white/5">
+                    <span class="text-[10px] font-mono text-gray-500">总览</span>
+                    <button id="closeStatsBtn"><i data-lucide="x" class="w-3 h-3 text-white"></i></button>
+                </div>
+                <div class="text-[10px] text-gray-500 font-mono tracking-widest mb-3 hidden md:block">项目进度统计</div>
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-2xl font-mono text-white" id="totalCount">0</span>
+                    <span class="text-xs text-gray-500 mb-1">总资产数量</span>
+                </div>
+                <div class="w-full h-1 bg-white/10 overflow-hidden mb-3">
+                    <div class="h-full bg-white w-[65%]"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-[10px] font-mono text-gray-400">
+                    <div><span class="text-emerald-400 block text-lg font-bold" id="c1">0</span>已建成</div>
+                    <div><span class="text-amber-400 block text-lg font-bold" id="c2">0</span>建设中</div>
+                    <div><span class="text-red-400 block text-lg font-bold" id="c3">0</span>规划中</div>
+                </div>
+            </div>
+
+            <div class="hud-panel w-64 flex-1 overflow-hidden flex-col pointer-events-auto min-h-0 hidden md:flex mb-8">
+                <div class="p-3 border-b border-white/5 bg-black/20 flex-shrink-0">
+                    <div class="flex items-center gap-2 bg-white/5 px-2 rounded border border-white/5">
+                        <i data-lucide="search" class="w-3 h-3 text-gray-500"></i>
+                        <input id="searchInput" type="text" placeholder="搜索建筑名称..." class="w-full bg-transparent text-xs font-mono text-white placeholder-gray-600 outline-none border-none py-1.5">
+                    </div>
+                </div>
+                <div id="buildingList" class="flex-1 overflow-y-auto p-1 space-y-0.5 scrollbar-thin"></div>
+            </div>
+        </div>
+
+        <div id="infoCard" class="absolute z-30 hud-panel p-6 bottom-0 left-0 w-full border-x-0 border-b-0 rounded-t-xl mobile-hidden md:bottom-8 md:right-12 md:left-auto md:w-80 md:border md:rounded-xl md:desktop-hidden backdrop-blur-xl">
+            <div class="absolute -top-1 -left-1 w-3 h-3 border-t border-l border-white/50 hidden md:block"></div>
+            <div class="absolute -bottom-1 -right-1 w-3 h-3 border-b border-r border-white/50 hidden md:block"></div>
+            <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 md:hidden"></div>
+            
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <div class="text-[10px] font-mono tracking-widest mb-1 flex items-center gap-1.5" id="cardStatusContainer">
+                        </div>
+                    <h2 class="text-xl font-bold text-white leading-tight mt-1" id="cardName">Unknown Entity</h2>
+                    <div class="text-xs text-gray-500 font-mono mt-1" id="cardEnName">No Data</div>
+                </div>
+                <div class="text-3xl font-mono text-white/10 font-bold tracking-tighter" id="cardRank">#00</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-px bg-white/10 border border-white/10 mb-4">
+                <div class="bg-brand-dark/80 p-3 hover:bg-white/5 transition-colors">
+                    <div class="text-[10px] text-gray-500 font-mono mb-0.5">高度 (M)</div>
+                    <div class="text-sm text-white font-mono font-bold"><span id="cardHeight">-</span></div>
+                </div>
+                <div class="bg-brand-dark/80 p-3 hover:bg-white/5 transition-colors">
+                    <div class="text-[10px] text-gray-500 font-mono mb-0.5">楼层 (F)</div>
+                    <div class="text-sm text-white font-mono font-bold"><span id="cardFloors">-</span></div>
+                </div>
+                <div class="bg-brand-dark/80 p-3 hover:bg-white/5 transition-colors">
+                    <div class="text-[10px] text-gray-500 font-mono mb-0.5">建成/规划年份</div>
+                    <div class="text-sm text-white font-mono font-bold" id="cardYear">-</div>
+                </div>
+                <div class="bg-brand-dark/80 p-3 hover:bg-white/5 transition-colors">
+                    <div class="text-[10px] text-gray-500 font-mono mb-0.5">区域</div>
+                    <div class="text-sm text-white font-mono font-bold" id="cardArea">-</div>
+                </div>
+            </div>
+
+            <div class="text-[10px] text-gray-500 font-mono leading-relaxed border-t border-white/10 pt-3 flex justify-between items-center">
+                <span>渲染引擎: Lumen / Nanite</span>
+                <span class="px-1.5 py-0.5 bg-white/10 rounded text-gray-300">HIGH POLY</span>
+            </div>
+            
+            <button id="closeCardMobile" class="w-full mt-4 py-3 bg-white/5 border border-white/10 text-xs text-gray-400 md:hidden active:bg-white/10 hover:text-white transition-colors">关闭详情</button>
+        </div>
+
+        <div id="progressMap"></div>
+    </section>
+
+    <section id="archives" class="py-24 px-6 md:px-12 bg-brand-black border-b border-white/5">
+        <div class="max-w-[1800px] mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-12 fade-in-up">
+                <div>
+                    <h2 class="text-3xl md:text-5xl font-bold text-white mb-2">视觉档案库</h2>
+                    <p class="text-brand-gray text-sm font-light">Unreal Engine 5.3 电影级渲染输出记录。</p>
+                </div>
+                <a href="#" class="hidden md:flex items-center gap-2 text-xs font-mono text-white border-b border-white/20 pb-1 hover:border-white transition-all mt-4 md:mt-0">
+                    查看完整图库 <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 h-auto md:h-[700px]">
+                <div class="md:col-span-8 md:row-span-2 relative group overflow-hidden cursor-none img-zoom-container fade-in-up rounded-sm">
+                    <img src="https://cllli.oss-cn-beijing.aliyuncs.com/img/2.jpg" 
+                         referrerpolicy="no-referrer"
+                         class="w-full h-full object-cover grayscale transition-all duration-700 group-hover:grayscale-0" alt="Main View">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8">
+                        <div>
+                            <div class="text-xs font-mono text-emerald-400 mb-1">CAM_01_DONGGANG</div>
+                            <h3 class="text-2xl text-white font-serif italic">人民路</h3>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="md:col-span-4 md:row-span-1 relative group overflow-hidden img-zoom-container fade-in-up delay-100 rounded-sm">
+                    <img src="https://cllli.oss-cn-beijing.aliyuncs.com/img/6.jpg" 
+                         referrerpolicy="no-referrer"
+                         class="w-full h-full object-cover grayscale transition-all duration-700 group-hover:grayscale-0" alt="Detail 1">
+                    <div class="absolute bottom-4 left-4">
+                        <span class="text-[10px] font-mono bg-black/60 text-white px-2 py-1 backdrop-blur-md border border-white/10">WIRE_MODE_OFF</span>
+                    </div>
+                </div>
+                
+                <div class="md:col-span-4 md:row-span-1 relative group overflow-hidden img-zoom-container fade-in-up delay-200 rounded-sm">
+                    <img src="https://cllli.oss-cn-beijing.aliyuncs.com/dlsp/img/3.jpg" 
+                         referrerpolicy="no-referrer"
+                         class="w-full h-full object-cover grayscale transition-all duration-700 group-hover:grayscale-0" alt="Detail 2">
+                    <div class="absolute bottom-4 left-4">
+                        <span class="text-[10px] font-mono bg-black/60 text-white px-2 py-1 backdrop-blur-md border border-white/10">LIGHTING_ONLY</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="core" class="py-24 px-6 md:px-12 bg-[#080808]">
+        <div class="max-w-[1800px] mx-auto">
+            <div class="mb-16 border-b border-white/5 pb-8 fade-in-up">
+                <span class="text-[10px] font-mono text-emerald-500 tracking-widest mb-2 block">TECHNICAL BREAKDOWN</span>
+                <h2 class="text-3xl md:text-4xl text-white font-medium tracking-tight">系统核心架构</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/10 border border-white/10 fade-in-up delay-100">
+                <div class="bg-[#0a0a0a] p-8 md:p-12 hover:bg-[#0f0f0f] transition-colors group">
+                    <div class="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-8 group-hover:bg-emerald-500/10 transition-colors">
+                        <i data-lucide="box" class="w-6 h-6 text-gray-400 group-hover:text-emerald-400"></i>
+                    </div>
+                    <h3 class="text-xl text-white font-bold mb-4">程序化生成 (PCG)</h3>
+                    <p class="text-sm text-gray-500 leading-relaxed mb-8">
+                        利用 Houdini Engine 进行 HDA 资产集成。基于真实 GIS 数据自动生成路网系统与建筑基底，实现城市肌理的快速迭代。
+                    </p>
+                </div>
+
+                <div class="bg-[#0a0a0a] p-8 md:p-12 hover:bg-[#0f0f0f] transition-colors group">
+                    <div class="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-8 group-hover:bg-blue-500/10 transition-colors">
+                        <i data-lucide="cpu" class="w-6 h-6 text-gray-400 group-hover:text-blue-400"></i>
+                    </div>
+                    <h3 class="text-xl text-white font-bold mb-4">Nanite & Lumen</h3>
+                    <p class="text-sm text-gray-500 leading-relaxed mb-8">
+                        Nanite 虚拟几何体技术支持实时渲染影视级高模资产。Lumen 全局光照系统模拟精确的光线反弹，还原大连海滨的真实光影。
+                    </p>
+                </div>
+
+                <div class="bg-[#0a0a0a] p-8 md:p-12 hover:bg-[#0f0f0f] transition-colors group">
+                    <div class="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-8 group-hover:bg-purple-500/10 transition-colors">
+                        <i data-lucide="layers" class="w-6 h-6 text-gray-400 group-hover:text-purple-400"></i>
+                    </div>
+                    <h3 class="text-xl text-white font-bold mb-4">Mass AI 群组模拟</h3>
+                    <p class="text-sm text-gray-500 leading-relaxed mb-8">
+                        基于 Zone Graph 的交通与人流 AI。模拟早晚高峰期中山路主干道的车流动态，以及东港木栈道的人群行为。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-12 border-t border-white/5 bg-black px-6 md:px-12 font-mono text-[10px] tracking-widest text-gray-600">
+        <div class="max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+                <span class="text-white font-bold mr-4">XIANG VISUALS</span>
+                <span>大连摩天楼计划 | DLSKYSCRAPERS INITIATIVE</span>
+            </div>
+            <div class="flex gap-8">
+                <a href="#" class="hover:text-white transition-colors">INSTAGRAM</a>
+                <a href="#" class="hover:text-white transition-colors">TWITTER</a>
+                <a href="#" class="hover:text-white transition-colors">ARTSTATION</a>
+            </div>
+            <div>© 2025 保留所有权利</div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="buildings.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
